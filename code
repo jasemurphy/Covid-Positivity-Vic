@@ -1,0 +1,73 @@
+library(tidyverse)
+library(ggtext)
+library(ggrepel)
+library(readabs)
+library(gganimate)
+
+
+
+#set date
+
+posdate <- posrate %>% 
+  slice_max(date) %>% 
+  select(date) %>% 
+  mutate(date = format(as.Date(date), "%B %d"))
+
+#barchart
+
+posrate %>% 
+  ggplot()+
+  aes(x=as.Date(date), y= pos_rate, fill = pos_rate)+
+  geom_col(show.legend =  FALSE)+
+  scale_fill_gradientn(colours = c("yellow", "gold", "red", "dark red"))+
+  scale_x_date(breaks = "3 days")+
+  scale_y_continuous(labels = scales::percent)+
+  labs(title = paste(posdate, ". Good news. Positivity rate abates to 2 per cent as cases fall below 1000"),
+       x="", y="")+
+  theme_bw()+
+  geom_text(aes(label = (scales::percent(pos_rate,accuracy = .01))), vjust = -1, size=3)
+
+ggsave(filename = "posratelinegraphNov2.jpeg")
+
+#positivity rate animation
+
+
+posanim <-posrate %>% 
+  mutate(label = format(date, "%b-%d")) %>% 
+  mutate(weekday = wday(date, label = TRUE)) %>% 
+  ggplot()+
+  aes(x=tests, y= cases, colour= pos_rate)+
+  geom_path(show.legend = FALSE)+
+  geom_point(aes(group=date), show.legend = FALSE)+
+  geom_abline(intercept = 000, slope =.025, show.legend = FALSE)+
+  geom_text(aes(label = paste(weekday, label)), show.legend = FALSE)+
+  
+  scale_colour_gradientn(colours = c("blue", "red"))+
+  labs(title = paste("Cases rose then fell from September to today,", posdate, 
+      ", <br/> and today we are back under 1000 cases"),
+       x="DAILY TESTS",
+       y= "DAILY NEW CASES",
+       caption = "data from @VicGovDH, visualisation by @jasemurphy")+
+  annotate("text", x = c(60000), y = c(2200), 
+           label = c("Bad zone: \n fewer tests, more cases") , color="red", 
+           size=3 , angle=0)+
+  annotate("text", x = c(70000), y = c(750), 
+           label = c("Good zone: \n more tests, fewer cases") , color="blue", 
+           size=3 , angle=0)+
+  annotate("text", x = 56000, y =1295, 
+           label = c("This line shows 2.5% positivity rate") , color="grey20", 
+           size=2.5 , angle=26)+
+  theme(plot.title = element_markdown(size =8),
+        panel.background = element_rect("white"),
+        axis.text = element_text(colour="black", size = 6),
+        axis.title = element_text(colour="black", size = 6),
+        plot.caption = element_text(size = 5))
+
+
+pa <- posanim + transition_reveal(date)+shadow_mark()
+
+animate(pa, end_pause = 30, nframes = 300, height=800, width = 900, res= 200)
+
+#save animation
+
+anim_save(filename = paste0("animatedcases", format(Sys.time(), "%Y-%m-%d"), ".gif"))
